@@ -235,20 +235,40 @@ registerNode({
 });
 ```
 
+## Loops
+
+Cycles are supported. The engine detects strongly connected components, orders
+them topologically, and re-executes a loop component while items travel on its
+**back edges** (DFS edges that point to an already-discovered node). Forward
+edges inside the loop pass data within the same iteration.
+
+A classic loop: an IF node sends one output back to an earlier node and the
+other output forward. When the back edge stops carrying items, the loop ends.
+See `workflows/counter-loop.json`:
+
+```
+trigger → increment → check ──true──▶ increment (back edge)
+                          └──false──▶ done
+```
+
+Set `settings.maxLoopIterations` (default 100) to guard against infinite loops.
+Exceeding it fails the run with a clear error. Execution records include the
+`iteration` index, shown as an `Iter` column in the editor's results table.
+
 ## Known limitations
 
-- **No loops / cycles** — the engine topologically sorts the graph and errors on
-  cycles. Real n8n supports loop-back connections.
 - **`new Function` is not a sandbox** — expressions and Code nodes can access
   globals. Workflows must be trusted; a production build needs a restricted
   expression parser and an isolated VM.
-- **No UI or credentials store yet** — those are Phase 3/4.
 - **Error handling stops the run** — partial failures per branch aren't retained.
+- **Free-tier hosting has ephemeral storage** — see `DEPLOY.md`; the SQLite
+  database resets on redeploy.
 
 ## Roadmap
 
 1. ~~Phase 1 — graph engine, node registry, expressions, CLI.~~ **Done**
 2. ~~Phase 2 — Express API, SQLite persistence, webhook endpoint, cron scheduler.~~ **Done**
-3. **Phase 3** — React Flow visual editor with node palette, wiring and live logs.
+3. ~~Phase 3 — React Flow visual editor with node palette, wiring and live logs.~~ **Done**
 4. ~~Phase 4 — Credentials, integrations, editor credential picker.~~ **Done**
-5. **Next** — Loops/cycles, sandboxed Code node, editor polish (undo/redo, import/export).
+5. ~~Phase 5 — Loops/cycles with iteration limits.~~ **Done**
+6. **Next** — Sandboxed Code node, Postgres persistence, editor polish (undo/redo, import/export).

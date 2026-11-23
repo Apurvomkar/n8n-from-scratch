@@ -131,10 +131,12 @@ export function validateWorkflow(workflow: WorkflowDefinition): string[] {
     errors.push('Workflow needs at least one trigger node');
   }
 
-  try {
-    topoSort(workflow);
-  } catch (error) {
-    errors.push((error as Error).message);
+  const maxIterations = workflow.settings?.maxLoopIterations;
+  if (maxIterations !== undefined) {
+    const value = Number(maxIterations);
+    if (!Number.isInteger(value) || value < 1 || value > 10000) {
+      errors.push('settings.maxLoopIterations must be an integer between 1 and 10000');
+    }
   }
 
   return errors;

@@ -1,0 +1,45 @@
+{
+  "name": "Counter Loop",
+  "description": "Loops back until a counter reaches 3, then exits the loop",
+  "settings": { "maxLoopIterations": 10 },
+  "nodes": [
+    {
+      "id": "trigger",
+      "type": "manualTrigger",
+      "name": "Start",
+      "position": [0, 0],
+      "parameters": { "payload": { "count": 0 } }
+    },
+    {
+      "id": "increment",
+      "type": "set",
+      "name": "Increment",
+      "position": [220, 0],
+      "parameters": { "values": { "count": "{{ $json.count + 1 }}" } }
+    },
+    {
+      "id": "check",
+      "type": "if",
+      "name": "Keep looping?",
+      "position": [440, 0],
+      "parameters": { "condition": "$json.count < 3" }
+    },
+    {
+      "id": "done",
+      "type": "log",
+      "name": "Finished",
+      "position": [660, 120],
+      "parameters": { "message": "Loop finished at count {{ $json.count }}" }
+    }
+  ],
+  "connections": {
+    "trigger": { "main": [[{ "node": "increment", "type": "main", "index": 0 }]] },
+    "increment": { "main": [[{ "node": "check", "type": "main", "index": 0 }]] },
+    "check": {
+      "main": [
+        [{ "node": "increment", "type": "main", "index": 0 }],
+        [{ "node": "done", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}

@@ -13,6 +13,8 @@ export function ResultsPanel({
   executions,
   onViewExecution,
 }: ResultsPanelProps) {
+  const hasIterations = records.some((record) => record.iteration !== undefined);
+
   return (
     <section className="results">
       <div className="results__section">
@@ -34,6 +36,7 @@ export function ResultsPanel({
                 <th>Status</th>
                 <th>In</th>
                 <th>Out</th>
+                {hasIterations && <th>Iter</th>}
               </tr>
             </thead>
             <tbody>
@@ -43,6 +46,7 @@ export function ResultsPanel({
                   <td><span className={`badge badge--${record.status}`}>{record.status}</span></td>
                   <td>{record.inputs}</td>
                   <td>{record.outputs.join('/')}</td>
+                  {hasIterations && <td>{record.iteration ?? '—'}</td>}
                 </tr>
               ))}
             </tbody>

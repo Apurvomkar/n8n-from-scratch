@@ -43,6 +43,7 @@ export interface NodeRecord {
   inputs: number;
   outputs: number[];
   ms: number;
+  iteration?: number;
   error?: string;
 }
 

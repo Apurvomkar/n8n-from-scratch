@@ -64,6 +64,7 @@ export interface RunRecord {
   inputs: number;
   outputs: number[];
   ms: number;
+  iteration?: number;
   error?: string;
 }
 

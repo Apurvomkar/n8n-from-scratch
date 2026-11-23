@@ -123,20 +123,87 @@ test('merge combines items from two branches', async () => {
   );
 });
 
-test('validation detects cycles', () => {
+test('validation accepts loops but rejects invalid iteration limits', () => {
   const workflow: WorkflowDefinition = {
-    name: 'cycle test',
+    name: 'loop validation',
+    settings: { maxLoopIterations: 5 },
     nodes: [
-      { id: 'a', type: 'set', parameters: { values: {} } },
-      { id: 'b', type: 'set', parameters: { values: {} } },
+      { id: 'trigger', type: 'manualTrigger', parameters: {} },
+      { id: 'a', type: 'noOp', parameters: {} },
+      { id: 'b', type: 'noOp', parameters: {} },
     ],
     connections: {
+      trigger: { main: [[{ node: 'a', type: 'main', index: 0 }]] },
       a: { main: [[{ node: 'b', type: 'main', index: 0 }]] },
       b: { main: [[{ node: 'a', type: 'main', index: 0 }]] },
     },
   };
-  const errors = validateWorkflow(workflow);
-  assert.ok(errors.some((error) => error.includes('Cycle')));
+  assert.deepEqual(validateWorkflow(workflow), []);
+  assert.ok(
+    validateWorkflow({ ...workflow, settings: { maxLoopIterations: 0 } }).some((error) =>
+      error.includes('maxLoopIterations'),
+    ),
+  );
+});
+
+test('loop re-executes its component until the condition flips', async () => {
+  const workflow: WorkflowDefinition = {
+    name: 'counter loop',
+    nodes: [
+      {
+        id: 'trigger',
+        type: 'manualTrigger',
+        parameters: { payload: { count: 0 } },
+      },
+      {
+        id: 'increment',
+        type: 'set',
+        parameters: { values: { count: '{{ $json.count + 1 }}' } },
+      },
+      { id: 'check', type: 'if', parameters: { condition: '$json.count < 3' } },
+      { id: 'done', type: 'log', parameters: { message: 'final {{ $json.count }}' } },
+    ],
+    connections: {
+      trigger: { main: [[{ node: 'increment', type: 'main', index: 0 }]] },
+      increment: { main: [[{ node: 'check', type: 'main', index: 0 }]] },
+      check: {
+        main: [
+          [{ node: 'increment', type: 'main', index: 0 }],
+          [{ node: 'done', type: 'main', index: 0 }],
+        ],
+      },
+    },
+  };
+
+  const result = await new WorkflowEngine().run(workflow);
+
+  assert.equal(result.success, true);
+  const iterations = result.records
+    .filter((record) => record.nodeId === 'increment')
+    .map((record) => record.iteration);
+  assert.deepEqual(iterations, [0, 1, 2]);
+  assert.equal(result.outputs.done[0][0].json.count, 3);
+});
+
+test('loop fails clearly when the iteration limit is exceeded', async () => {
+  const workflow: WorkflowDefinition = {
+    name: 'infinite loop',
+    settings: { maxLoopIterations: 3 },
+    nodes: [
+      { id: 'trigger', type: 'manualTrigger', parameters: {} },
+      { id: 'spin', type: 'noOp', parameters: {} },
+    ],
+    connections: {
+      trigger: { main: [[{ node: 'spin', type: 'main', index: 0 }]] },
+      spin: { main: [[{ node: 'spin', type: 'main', index: 0 }]] },
+    },
+  };
+
+  const result = await new WorkflowEngine().run(workflow);
+  assert.equal(result.success, false);
+  assert.ok(
+    result.records.some((record) => record.error?.includes('Loop exceeded 3 iterations')),
+  );
 });
 
 test('bundled webhook workflow runs end to end', async () => {
