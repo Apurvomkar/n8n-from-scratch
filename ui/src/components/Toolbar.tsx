@@ -6,12 +6,18 @@ interface ToolbarProps {
   name: string;
   saved: boolean;
   status: string;
+  canUndo: boolean;
+  canRedo: boolean;
   onSelect: (id: string) => void;
   onNew: () => void;
   onSave: () => void;
   onRun: () => void;
   onDelete: () => void;
   onCredentials: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  onImport: () => void;
+  onExport: () => void;
 }
 
 export function Toolbar({
@@ -20,12 +26,18 @@ export function Toolbar({
   name,
   saved,
   status,
+  canUndo,
+  canRedo,
   onSelect,
   onNew,
   onSave,
   onRun,
   onDelete,
   onCredentials,
+  onUndo,
+  onRedo,
+  onImport,
+  onExport,
 }: ToolbarProps) {
   return (
     <header className="toolbar">
@@ -45,14 +57,16 @@ export function Toolbar({
       </select>
 
       <button className="btn" onClick={onNew}>New</button>
+      <button className="btn" onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)">Undo</button>
+      <button className="btn" onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Y)">Redo</button>
+      <button className="btn" onClick={onImport} title="Import workflow JSON">Import</button>
+      <button className="btn" onClick={onExport} title="Export workflow JSON">Export</button>
       <button className="btn btn--primary" onClick={onSave}>Save</button>
       <button className="btn btn--run" onClick={onRun}>Run</button>
       <button className="btn btn--danger" onClick={onDelete} disabled={!saved || !currentId}>
         Delete
       </button>
-      <button className="btn" onClick={onCredentials}>
-        Credentials
-      </button>
+      <button className="btn" onClick={onCredentials}>Credentials</button>
 
       <div className="toolbar__spacer" />
 

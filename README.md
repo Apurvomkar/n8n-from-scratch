@@ -35,6 +35,14 @@ npm test
 npm run typecheck
 ```
 
+## Editor shortcuts & JSON I/O
+
+- **Undo / Redo** — toolbar buttons or `Ctrl+Z` / `Ctrl+Y` (`Ctrl+Shift+Z`).
+  History covers adding/deleting nodes and edges, connections, drags, config
+  changes, settings, and imports. Loading or creating a workflow resets history.
+- **Import / Export** — export downloads the current workflow as a `.json` file;
+  import reads one back and opens it as an unsaved workflow you can review and save.
+
 ## Storage
 
 Set `DATABASE_URL` to use Postgres; otherwise the app uses SQLite at `DB_PATH`
@@ -296,4 +304,5 @@ wrapped as `{ json: ... }`).
 5. ~~Phase 5 — Loops/cycles with iteration limits.~~ **Done**
 6. ~~Phase 6 — Sandboxed Code node with restricted `node:vm` context.~~ **Done**
 7. ~~Phase 7 — Postgres persistence via `DATABASE_URL`.~~ **Done**
-8. **Next** — Editor polish (undo/redo, JSON import/export), deployment go-live.
+8. ~~Phase 8 — Editor polish: undo/redo, JSON import/export.~~ **Done**
+9. **Next** — Deployment go-live (needs domain, GitHub repo and host URLs).

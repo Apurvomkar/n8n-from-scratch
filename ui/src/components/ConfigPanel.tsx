@@ -7,6 +7,7 @@ interface ConfigPanelProps {
   definitions: NodeDefinition[];
   name: string;
   onNameChange: (name: string) => void;
+  onNameFocus: () => void;
   settings: Record<string, any>;
   credentialTypes: string[];
   credentials: CredentialMeta[];
@@ -22,6 +23,7 @@ export function ConfigPanel({
   definitions,
   name,
   onNameChange,
+  onNameFocus,
   settings,
   credentialTypes,
   credentials,
@@ -107,6 +109,7 @@ export function ConfigPanel({
           <input
             className="config__input"
             value={nodeName}
+            onFocus={onNameFocus}
             onChange={(event) => setNodeName(event.target.value)}
           />
 
@@ -169,6 +172,7 @@ export function ConfigPanel({
           <input
             className="config__input"
             value={name}
+            onFocus={onNameFocus}
             onChange={(event) => onNameChange(event.target.value)}
           />
           <label className="config__label">Settings (JSON)</label>

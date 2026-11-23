@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+} from 'react';
 import {
   addEdge,
   Background,
@@ -12,6 +19,7 @@ import {
   useReactFlow,
   type Connection,
   type Edge,
+  type EdgeChange,
   type NodeChange,
   type NodeTypes,
 } from '@xyflow/react';
@@ -36,10 +44,18 @@ import type {
   Execution,
   NodeDefinition,
   RunRecord,
+  WorkflowDefinition,
   WorkflowSummary,
 } from './types';
 
 const nodeTypes: NodeTypes = { workflow: WorkflowNode };
+
+interface Snapshot {
+  nodes: EditorNode[];
+  edges: Edge[];
+  name: string;
+  settings: Record<string, any>;
+}
 
 function Editor() {
   const [definitions, setDefinitions] = useState<NodeDefinition[]>([]);
@@ -57,7 +73,72 @@ function Editor() {
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [credentials, setCredentials] = useState<CredentialMeta[]>([]);
   const [credentialsOpen, setCredentialsOpen] = useState(false);
+  const [past, setPast] = useState<Snapshot[]>([]);
+  const [future, setFuture] = useState<Snapshot[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { screenToFlowPosition } = useReactFlow();
+
+  const stateRef = useRef<Snapshot>({ nodes, edges, name: workflowName, settings });
+  stateRef.current = { nodes, edges, name: workflowName, settings };
+
+  const record = useCallback(() => {
+    const current = stateRef.current;
+    setPast((entries) => [...entries.slice(-49), current]);
+    setFuture([]);
+  }, []);
+
+  const resetHistory = useCallback(() => {
+    setPast([]);
+    setFuture([]);
+  }, []);
+
+  const applySnapshot = useCallback(
+    (snapshot: Snapshot) => {
+      setNodes(snapshot.nodes.map((node) => ({ ...node })));
+      setEdges(snapshot.edges.map((edge) => ({ ...edge })));
+      setWorkflowName(snapshot.name);
+      setSettings({ ...snapshot.settings });
+      setSelectedId(null);
+    },
+    [setNodes, setEdges],
+  );
+
+  const undo = useCallback(() => {
+    if (past.length === 0) return;
+    const previous = past[past.length - 1];
+    setFuture((entries) => [stateRef.current, ...entries]);
+    applySnapshot(previous);
+    setPast(past.slice(0, -1));
+  }, [past, applySnapshot]);
+
+  const redo = useCallback(() => {
+    if (future.length === 0) return;
+    const next = future[0];
+    setPast((entries) => [...entries, stateRef.current]);
+    applySnapshot(next);
+    setFuture(future.slice(1));
+  }, [future, applySnapshot]);
+
+  const historyRef = useRef({ undo, redo });
+  historyRef.current = { undo, redo };
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+      const key = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && key === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) historyRef.current.redo();
+        else historyRef.current.undo();
+      } else if ((event.ctrlKey || event.metaKey) && key === 'y') {
+        event.preventDefault();
+        historyRef.current.redo();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const refreshWorkflows = useCallback(async () => {
     try {
@@ -109,12 +190,13 @@ function Editor() {
         setSelectedId(null);
         setRecords([]);
         setSuccess(null);
+        resetHistory();
         setStatus(`Loaded '${stored.definition.name}'`);
       } catch (error) {
         setStatus(`Load failed: ${(error as Error).message}`);
       }
     },
-    [definitions, setNodes, setEdges],
+    [definitions, setNodes, setEdges, resetHistory],
   );
 
   const newWorkflow = () => {
@@ -133,6 +215,7 @@ function Editor() {
     setSelectedId('trigger');
     setRecords([]);
     setSuccess(null);
+    resetHistory();
     setStatus('New workflow — save to persist');
   };
 
@@ -185,7 +268,60 @@ function Editor() {
     }
   };
 
+  const exportWorkflow = () => {
+    const definition = flowToWorkflow(workflowName, nodes, edges, settings);
+    const blob = new Blob([JSON.stringify(definition, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${(workflowName || 'workflow')
+      .replace(/[^a-z0-9-_]+/gi, '-')
+      .toLowerCase()}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setStatus('Workflow exported as JSON');
+  };
+
+  const importWorkflow = async (file: File) => {
+    try {
+      const parsed = JSON.parse(await file.text()) as {
+        name?: string;
+        nodes?: unknown[];
+        connections?: Record<string, unknown>;
+        settings?: Record<string, any>;
+      };
+      if (!parsed || !Array.isArray(parsed.nodes) || typeof parsed.connections !== 'object') {
+        throw new Error('File does not look like a workflow (needs nodes and connections)');
+      }
+      const defs = definitions.length > 0 ? definitions : await api.nodeTypes();
+      if (definitions.length === 0) setDefinitions(defs);
+      const flow = workflowToFlow(
+        {
+          name: parsed.name ?? 'Imported workflow',
+          nodes: parsed.nodes as WorkflowDefinition['nodes'],
+          connections: parsed.connections as WorkflowDefinition['connections'],
+          settings: parsed.settings,
+        },
+        defs,
+      );
+      record();
+      setNodes(flow.nodes);
+      setEdges(flow.edges);
+      setWorkflowName(parsed.name ?? 'Imported workflow');
+      setSettings(parsed.settings ?? {});
+      setCurrentId(`wf-${Date.now()}`);
+      setSaved(false);
+      setSelectedId(null);
+      setStatus(`Imported '${parsed.name ?? 'workflow'}' — save to persist`);
+    } catch (error) {
+      setStatus(`Import failed: ${(error as Error).message}`);
+    }
+  };
+
   const addNodeAt = (type: string, position?: { x: number; y: number }) => {
+    record();
     const node: EditorNode = {
       id: `n-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
       type: 'workflow',
@@ -201,6 +337,7 @@ function Editor() {
 
   const onConnect = useCallback(
     (connection: Connection) => {
+      record();
       setEdges((current) =>
         addEdge(
           {
@@ -212,7 +349,7 @@ function Editor() {
         ),
       );
     },
-    [setEdges],
+    [record, setEdges],
   );
 
   const onDragOver = (event: DragEvent) => {
@@ -229,21 +366,32 @@ function Editor() {
 
   const handleNodesChange = useCallback(
     (changes: NodeChange<EditorNode>[]) => {
+      if (changes.some((change) => change.type === 'remove')) record();
       onNodesChangeRaw(changes);
       if (changes.some((change) => change.type === 'remove' && change.id === selectedId)) {
         setSelectedId(null);
       }
     },
-    [onNodesChangeRaw, selectedId],
+    [onNodesChangeRaw, selectedId, record],
+  );
+
+  const handleEdgesChange = useCallback(
+    (changes: EdgeChange<Edge>[]) => {
+      if (changes.some((change) => change.type === 'remove')) record();
+      onEdgesChangeRaw(changes);
+    },
+    [onEdgesChangeRaw, record],
   );
 
   const updateNode = (id: string, patch: Partial<EditorNodeData>) => {
+    record();
     setNodes((current) =>
       current.map((node) => (node.id === id ? { ...node, data: { ...node.data, ...patch } } : node)),
     );
   };
 
   const deleteNode = (id: string) => {
+    record();
     setNodes((current) => current.filter((node) => node.id !== id));
     setEdges((current) => current.filter((edge) => edge.source !== id && edge.target !== id));
     setSelectedId(null);
@@ -268,6 +416,8 @@ function Editor() {
         name={workflowName}
         saved={saved}
         status={status}
+        canUndo={past.length > 0}
+        canRedo={future.length > 0}
         onSelect={(id) => {
           if (id) void loadWorkflow(id);
         }}
@@ -276,6 +426,21 @@ function Editor() {
         onRun={() => void run()}
         onDelete={() => void remove()}
         onCredentials={() => setCredentialsOpen(true)}
+        onUndo={undo}
+        onRedo={redo}
+        onImport={() => fileInputRef.current?.click()}
+        onExport={exportWorkflow}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/json,.json"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) void importWorkflow(file);
+          event.target.value = '';
+        }}
       />
 
       <div className="app__body">
@@ -287,8 +452,9 @@ function Editor() {
             edges={edges}
             nodeTypes={nodeTypes}
             onNodesChange={handleNodesChange}
-            onEdgesChange={onEdgesChangeRaw}
+            onEdgesChange={handleEdgesChange}
             onConnect={onConnect}
+            onNodeDragStart={record}
             onNodeClick={(_event, node) => setSelectedId(node.id)}
             onPaneClick={() => setSelectedId(null)}
             fitView
@@ -308,6 +474,7 @@ function Editor() {
           definitions={definitions}
           name={workflowName}
           onNameChange={setWorkflowName}
+          onNameFocus={record}
           settings={settings}
           credentialTypes={
             definitions.find((entry) => entry.type === selectedNode?.data.nodeType)?.credentialTypes ?? []
@@ -318,7 +485,10 @@ function Editor() {
             if (selectedNode) updateNode(selectedNode.id, { credentials: next });
           }}
           onUpdateNode={updateNode}
-          onUpdateSettings={setSettings}
+          onUpdateSettings={(next) => {
+            record();
+            setSettings(next);
+          }}
           onDeleteNode={deleteNode}
         />
       </div>
