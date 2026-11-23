@@ -5,7 +5,7 @@ scheduler, and the built React editor. No separate frontend host is needed.
 
 ## Prerequisites
 
-- Your domain registered at Hostinger (e.g. `<DOMAIN>`)
+- Your domain registered at Hostinger: `layerup.host`
 - A GitHub account (Render/Railway deploy from a Git repo)
 - A Render or Railway account (free tier is enough to start)
 
@@ -56,19 +56,23 @@ SQLite database and local encryption key will not be uploaded.
 
 In Render: **Settings → Custom Domains → Add Custom Domain**, enter both:
 
-- `<DOMAIN>`
-- `www.<DOMAIN>`
+- `layerup.host`
+- `www.layerup.host`
 
 Render will show the exact DNS records it needs. In Hostinger:
 
-1. Open **hPanel → Domains → DNS / DNS Zone Editor** for `<DOMAIN>`.
+> Current state of `layerup.host`: the apex has an `A` record to `2.57.91.91`
+> (Hostinger's parked-domain page) and `www` is a `CNAME` to the apex. Replace
+> these records — the parking page will disappear once the new records resolve.
+
+1. Open **hPanel → Domains → DNS / DNS Zone Editor** for `layerup.host`.
 2. Add the records Render shows, typically:
    - `www` → `CNAME` → `<YOUR_SERVICE>.onrender.com`
    - `@` (apex) → `A` record to Render's displayed IP, or a `CNAME` if Render
      offers CNAME flattening for the apex.
 3. Save. DNS propagation can take a few minutes to a few hours.
 4. Render provisions a free TLS certificate automatically. Once it is active,
-   `https://<DOMAIN>` will serve the editor.
+   `https://layerup.host` will serve the editor.
 
 For Railway, the same idea: **Settings → Domains → Custom Domain**, then add
 the CNAME record shown by Railway in Hostinger's DNS editor.
@@ -76,11 +80,11 @@ the CNAME record shown by Railway in Hostinger's DNS editor.
 ## 4. Verify
 
 ```powershell
-curl.exe https://<DOMAIN>/health
-curl.exe https://<DOMAIN>/api/nodes
+curl.exe https://layerup.host/health
+curl.exe https://layerup.host/api/nodes
 ```
 
-Open `https://<DOMAIN>` in a browser — you should see the workflow editor with
+Open `https://layerup.host` in a browser — you should see the workflow editor with
 the node palette and workflow dropdown.
 
 ## Data persistence
