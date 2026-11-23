@@ -39,6 +39,9 @@ SQLite database and local encryption key will not be uploaded.
    - `DB_PATH=/app/data/workflows.db`
    - `KEY_PATH=/app/data/.encryption-key`
    - `PORT=3000`
+   - `DATABASE_URL` — provided by the `n8n-db` Postgres service in `render.yaml`.
+     When set, workflows, credentials and execution history persist in Postgres
+     instead of the ephemeral SQLite file.
 5. Deploy, then open `https://<YOUR_SERVICE>.onrender.com/health` — you should see
    `{"status":"ok",...}`. The root URL should show the workflow editor.
 
@@ -80,17 +83,26 @@ curl.exe https://<DOMAIN>/api/nodes
 Open `https://<DOMAIN>` in a browser — you should see the workflow editor with
 the node palette and workflow dropdown.
 
-## Important: free-tier data persistence
+## Data persistence
 
-Render/Railway free plans use an **ephemeral filesystem**. The SQLite database
-(`data/workflows.db`) and local key file are wiped on restart or redeploy.
+The app picks its store automatically:
 
-- Keep `ENCRYPTION_KEY` set as an environment variable so credentials stay
-  decryptable after a DB reset.
-- Workflows, credentials and execution history will still be lost on a restart.
-- For persistence, upgrade to a paid plan with a persistent disk and set
-  `DB_PATH` / `KEY_PATH` to a path on that volume. A future version can swap
-  SQLite for an external Postgres database.
+- **`DATABASE_URL` set** → Postgres. Workflows, credentials and execution history
+  survive redeploys. `render.yaml` creates a `n8n-db` Postgres service and wires
+  its connection string into the web service.
+- **No `DATABASE_URL`** → SQLite at `DB_PATH` (default `data/workflows.db`).
+  Zero setup, but Render/Railway free tiers have an **ephemeral filesystem**, so
+  the file is wiped on restart or redeploy.
+
+Always keep `ENCRYPTION_KEY` set as an environment variable so encrypted
+credentials remain decryptable if the database is ever reset.
+
+> Render's free Postgres plan expires after 30 days. Upgrade it to a paid plan
+> before then, or point `DATABASE_URL` at another Postgres provider (Railway,
+> Supabase, Neon, etc.). The app needs no code changes — just the URL.
+
+On Railway, create a Postgres service, add its `DATABASE_URL` variable to the
+web service, and redeploy.
 
 ## Local production-style test
 

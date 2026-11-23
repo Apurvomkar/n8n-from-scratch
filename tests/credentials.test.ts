@@ -55,7 +55,7 @@ test('credential API stores secrets encrypted and never returns them', async () 
     assert.ok(!('data' in created));
     assert.ok(!JSON.stringify(created).includes('xoxb-secret-value'));
 
-    const row = store.getCredential(created.id as string)!;
+    const row = (await store.getCredential(created.id as string))!;
     assert.ok(!row.data.includes('xoxb-secret-value'));
     assert.equal(JSON.parse(decrypt(row.data, key)).token, 'xoxb-secret-value');
 

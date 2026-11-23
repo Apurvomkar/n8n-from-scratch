@@ -1,10 +1,10 @@
 /** Schedules workflows whose `settings.schedule` holds a cron expression. */
 
 import cron, { type ScheduledTask } from 'node-cron';
-import type { Store } from './store.js';
+import type { WorkflowStore } from './store-types.js';
 
 export interface SchedulerOptions {
-  store: Store;
+  store: WorkflowStore;
   runWorkflow: (id: string) => Promise<void>;
   log?: (message: string) => void;
 }
@@ -15,7 +15,7 @@ export interface SyncResult {
 }
 
 export class Scheduler {
-  private readonly store: Store;
+  private readonly store: WorkflowStore;
   private readonly runWorkflow: (id: string) => Promise<void>;
   private readonly log: (message: string) => void;
   private readonly tasks = new Map<string, ScheduledTask>();
@@ -27,12 +27,12 @@ export class Scheduler {
   }
 
   /** Stop every existing job and register jobs for all currently scheduled workflows. */
-  sync(): SyncResult {
+  async sync(): Promise<SyncResult> {
     this.stop();
     const registered: string[] = [];
     const errors: string[] = [];
 
-    for (const stored of this.store.listWorkflows()) {
+    for (const stored of await this.store.listWorkflows()) {
       const expression = stored.definition.settings?.schedule;
       if (!expression) continue;
 

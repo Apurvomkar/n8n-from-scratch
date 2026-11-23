@@ -7,16 +7,15 @@ import express, { type Express } from 'express';
 import { WorkflowEngine } from '../engine.js';
 import { validateWorkflow } from '../workflow.js';
 import type { Item, WorkflowDefinition } from '../types.js';
-import { type Store } from './store.js';
+import type { WorkflowStore } from './store-types.js';
 import { decrypt, encrypt } from './crypto.js';
 import { Scheduler } from './scheduler.js';
 import { listNodes } from '../nodes/index.js';
 
 type CreateBody = WorkflowDefinition & { id?: string };
-type RunBody = { items?: Item[] } | Item[];
 
 export interface AppOptions {
-  store: Store;
+  store: WorkflowStore;
   key: Buffer;
   log?: (message: string) => void;
   /** Built UI directory to serve (e.g. ui/dist). Omit for API-only mode. */
@@ -43,6 +42,22 @@ function asItems(body: unknown): Item[] {
   return [];
 }
 
+function credentialMeta(row: {
+  id: string;
+  name: string;
+  type: string;
+  createdAt: string;
+  updatedAt: string;
+}) {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
 export function createApp(options: AppOptions): AppBundle {
   const { store, key } = options;
   const log = options.log ?? (() => {});
@@ -57,15 +72,15 @@ export function createApp(options: AppOptions): AppBundle {
   }
 
   const runWorkflow = async (id: string, items: Item[] = []) => {
-    const stored = store.getWorkflow(id);
+    const stored = await store.getWorkflow(id);
     if (!stored) {
       throw new Error(`Workflow '${id}' not found`);
     }
     const startedAt = new Date().toISOString();
     const result = await engine.run(stored.definition, {
       initialItems: items.length > 0 ? items : stored.definition.settings?.defaultItems ?? [],
-      resolveCredential: (id) => {
-        const row = store.getCredential(id);
+      resolveCredential: async (credentialId) => {
+        const row = await store.getCredential(credentialId);
         if (!row) return undefined;
         try {
           return JSON.parse(decrypt(row.data, key)) as Record<string, any>;
@@ -77,7 +92,7 @@ export function createApp(options: AppOptions): AppBundle {
         if (event.type === 'node-error') log(event.message);
       },
     });
-    const execution = store.addExecution(id, result, startedAt);
+    const execution = await store.addExecution(id, result, startedAt);
     return {
       success: result.success,
       executionId: execution.id,
@@ -120,10 +135,10 @@ export function createApp(options: AppOptions): AppBundle {
     });
   });
 
-  app.get('/health', (_req, res) => {
+  app.get('/health', async (_req, res) => {
     res.json({
       status: 'ok',
-      workflows: store.countWorkflows(),
+      workflows: await store.countWorkflows(),
       scheduled: scheduler.size,
     });
   });
@@ -143,9 +158,10 @@ export function createApp(options: AppOptions): AppBundle {
   });
 
   // -------------------------------------------------------------- workflows
-  app.get('/api/workflows', (_req, res) => {
+  app.get('/api/workflows', async (_req, res) => {
+    const workflows = await store.listWorkflows();
     res.json(
-      store.listWorkflows().map((workflow) => ({
+      workflows.map((workflow) => ({
         id: workflow.id,
         name: workflow.name,
         scheduled: Boolean(workflow.definition.settings?.schedule),
@@ -156,7 +172,7 @@ export function createApp(options: AppOptions): AppBundle {
     );
   });
 
-  app.post('/api/workflows', (req, res) => {
+  app.post('/api/workflows', async (req, res) => {
     const body = req.body as CreateBody | undefined;
     if (!body || typeof body !== 'object') {
       res.status(400).json({ errors: ['Request body must be a workflow object'] });
@@ -168,13 +184,13 @@ export function createApp(options: AppOptions): AppBundle {
       return;
     }
     const id = body.id ? String(body.id) : randomUUID();
-    const stored = store.upsertWorkflow(id, body);
-    const sync = scheduler.sync();
+    const stored = await store.upsertWorkflow(id, body);
+    const sync = await scheduler.sync();
     res.status(201).json({ ...stored, scheduleErrors: sync.errors });
   });
 
-  app.get('/api/workflows/:id', (req, res) => {
-    const stored = store.getWorkflow(req.params.id);
+  app.get('/api/workflows/:id', async (req, res) => {
+    const stored = await store.getWorkflow(req.params.id);
     if (!stored) {
       res.status(404).json({ error: 'Workflow not found' });
       return;
@@ -182,8 +198,8 @@ export function createApp(options: AppOptions): AppBundle {
     res.json(stored);
   });
 
-  app.put('/api/workflows/:id', (req, res) => {
-    if (!store.getWorkflow(req.params.id)) {
+  app.put('/api/workflows/:id', async (req, res) => {
+    if (!(await store.getWorkflow(req.params.id))) {
       res.status(404).json({ error: 'Workflow not found' });
       return;
     }
@@ -197,18 +213,18 @@ export function createApp(options: AppOptions): AppBundle {
       res.status(400).json({ errors });
       return;
     }
-    const stored = store.upsertWorkflow(req.params.id, body);
-    const sync = scheduler.sync();
+    const stored = await store.upsertWorkflow(req.params.id, body);
+    const sync = await scheduler.sync();
     res.json({ ...stored, scheduleErrors: sync.errors });
   });
 
-  app.delete('/api/workflows/:id', (req, res) => {
-    const removed = store.deleteWorkflow(req.params.id);
+  app.delete('/api/workflows/:id', async (req, res) => {
+    const removed = await store.deleteWorkflow(req.params.id);
     if (!removed) {
       res.status(404).json({ error: 'Workflow not found' });
       return;
     }
-    scheduler.sync();
+    await scheduler.sync();
     res.status(204).end();
   });
 
@@ -222,14 +238,14 @@ export function createApp(options: AppOptions): AppBundle {
   });
 
   // -------------------------------------------------------------- executions
-  app.get('/api/executions', (req, res) => {
+  app.get('/api/executions', async (req, res) => {
     const workflowId = typeof req.query.workflowId === 'string' ? req.query.workflowId : undefined;
     const limit = req.query.limit ? Number(req.query.limit) : 50;
-    res.json(store.listExecutions({ workflowId, limit }));
+    res.json(await store.listExecutions({ workflowId, limit }));
   });
 
-  app.get('/api/executions/:id', (req, res) => {
-    const execution = store.getExecution(req.params.id);
+  app.get('/api/executions/:id', async (req, res) => {
+    const execution = await store.getExecution(req.params.id);
     if (!execution) {
       res.status(404).json({ error: 'Execution not found' });
       return;
@@ -238,11 +254,11 @@ export function createApp(options: AppOptions): AppBundle {
   });
 
   // ------------------------------------------------------------- credentials
-  app.get('/api/credentials', (_req, res) => {
-    res.json(store.listCredentials());
+  app.get('/api/credentials', async (_req, res) => {
+    res.json(await store.listCredentials());
   });
 
-  app.post('/api/credentials', (req, res) => {
+  app.post('/api/credentials', async (req, res) => {
     const { name, type, data } = req.body ?? {};
     if (
       typeof name !== 'string' ||
@@ -255,43 +271,31 @@ export function createApp(options: AppOptions): AppBundle {
       res.status(400).json({ error: 'name, type and data (object) are required' });
       return;
     }
-    const row = store.addCredential(
+    const row = await store.addCredential(
       randomUUID(),
       name.trim(),
       type.trim(),
       encrypt(JSON.stringify(data), key),
     );
-    res.status(201).json({
-      id: row.id,
-      name: row.name,
-      type: row.type,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    });
+    res.status(201).json(credentialMeta(row));
   });
 
-  app.get('/api/credentials/:id', (req, res) => {
-    const row = store.getCredential(req.params.id);
+  app.get('/api/credentials/:id', async (req, res) => {
+    const row = await store.getCredential(req.params.id);
     if (!row) {
       res.status(404).json({ error: 'Credential not found' });
       return;
     }
-    res.json({
-      id: row.id,
-      name: row.name,
-      type: row.type,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    });
+    res.json(credentialMeta(row));
   });
 
-  app.put('/api/credentials/:id', (req, res) => {
+  app.put('/api/credentials/:id', async (req, res) => {
     const body = req.body as { name?: string; type?: string; data?: Record<string, any> };
     const encrypted =
       body?.data && typeof body.data === 'object'
         ? encrypt(JSON.stringify(body.data), key)
         : undefined;
-    const updated = store.updateCredential(req.params.id, {
+    const updated = await store.updateCredential(req.params.id, {
       ...(typeof body?.name === 'string' ? { name: body.name } : {}),
       ...(typeof body?.type === 'string' ? { type: body.type } : {}),
       ...(encrypted ? { data: encrypted } : {}),
@@ -300,17 +304,11 @@ export function createApp(options: AppOptions): AppBundle {
       res.status(404).json({ error: 'Credential not found' });
       return;
     }
-    res.json({
-      id: updated.id,
-      name: updated.name,
-      type: updated.type,
-      createdAt: updated.createdAt,
-      updatedAt: updated.updatedAt,
-    });
+    res.json(credentialMeta(updated));
   });
 
-  app.delete('/api/credentials/:id', (req, res) => {
-    const removed = store.deleteCredential(req.params.id);
+  app.delete('/api/credentials/:id', async (req, res) => {
+    const removed = await store.deleteCredential(req.params.id);
     if (!removed) {
       res.status(404).json({ error: 'Credential not found' });
       return;
@@ -320,7 +318,7 @@ export function createApp(options: AppOptions): AppBundle {
 
   // ---------------------------------------------------------------- webhooks
   app.post('/webhook/:id', async (req, res) => {
-    const stored = store.getWorkflow(req.params.id);
+    const stored = await store.getWorkflow(req.params.id);
     if (!stored) {
       res.status(404).json({ error: 'Workflow not found' });
       return;

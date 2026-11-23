@@ -16,3 +16,13 @@ services:
         value: /app/data/.encryption-key
       - key: ENCRYPTION_KEY
         generateValue: true
+      # When present, the app uses Postgres instead of the ephemeral SQLite file.
+      - key: DATABASE_URL
+        fromService:
+          type: postgres
+          name: n8n-db
+          property: connectionString
+
+databases:
+  - name: n8n-db
+    plan: free

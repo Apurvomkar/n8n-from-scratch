@@ -37,8 +37,10 @@ export interface RunOptions {
   onEvent?: (event: RunEvent) => void;
   /** Stop the whole run after the first failing node (default: true). */
   stopOnError?: boolean;
-  /** Resolve a credential id into its decrypted data. */
-  resolveCredential?: (id: string) => Record<string, any> | undefined;
+  /** Resolve a credential id into its decrypted data (sync or async). */
+  resolveCredential?: (
+    id: string,
+  ) => Record<string, any> | undefined | Promise<Record<string, any> | undefined>;
   /** Override the maximum iterations for loop components. */
   maxIterations?: number;
 }
@@ -120,7 +122,7 @@ export class WorkflowEngine {
       try {
         const credentials: Record<string, Record<string, any>> = {};
         for (const [credentialType, credentialId] of Object.entries(node.credentials ?? {})) {
-          const resolved = options.resolveCredential?.(String(credentialId));
+          const resolved = await options.resolveCredential?.(String(credentialId));
           if (resolved) credentials[credentialType] = resolved;
         }
 

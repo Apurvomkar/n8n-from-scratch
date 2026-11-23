@@ -35,6 +35,13 @@ npm test
 npm run typecheck
 ```
 
+## Storage
+
+Set `DATABASE_URL` to use Postgres; otherwise the app uses SQLite at `DB_PATH`
+(default `data/workflows.db`). Both stores implement the same `WorkflowStore`
+interface, so workflows, encrypted credentials and execution history work
+identically. See `DEPLOY.md` for hosted setup.
+
 ## Phase 2: HTTP API, persistence, webhooks & scheduling
 
 Start the server (it auto-seeds the bundled workflows into SQLite on first run):
@@ -207,6 +214,8 @@ n8n-from-scratch/
 │       ├── index.ts    # server entry point + seeding
 │       ├── app.ts      # Express routes
 │       ├── store.ts    # SQLite persistence
+│       ├── pg-store.ts # Postgres persistence
+│       ├── store-types.ts, store-factory.ts
 │       ├── crypto.ts   # AES-256-GCM credential encryption
 │       └── scheduler.ts# cron scheduling
 ├── workflows/          # seed workflow definitions
@@ -275,8 +284,8 @@ wrapped as `{ json: ... }`).
   sandboxed, but `{{ ... }}` interpolation in other nodes is not. Workflows
   must still be trusted.
 - **Error handling stops the run** — partial failures per branch aren't retained.
-- **Free-tier hosting has ephemeral storage** — see `DEPLOY.md`; the SQLite
-  database resets on redeploy.
+- **SQLite on free hosting is ephemeral** — set `DATABASE_URL` for Postgres;
+  see `DEPLOY.md`.
 
 ## Roadmap
 
@@ -286,4 +295,5 @@ wrapped as `{ json: ... }`).
 4. ~~Phase 4 — Credentials, integrations, editor credential picker.~~ **Done**
 5. ~~Phase 5 — Loops/cycles with iteration limits.~~ **Done**
 6. ~~Phase 6 — Sandboxed Code node with restricted `node:vm` context.~~ **Done**
-7. **Next** — Postgres persistence for hosted deployments, editor polish (undo/redo, import/export).
+7. ~~Phase 7 — Postgres persistence via `DATABASE_URL`.~~ **Done**
+8. **Next** — Editor polish (undo/redo, JSON import/export), deployment go-live.

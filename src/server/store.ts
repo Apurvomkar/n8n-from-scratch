@@ -1,31 +1,26 @@
-/** SQLite-backed persistence for workflows and execution history. */
+/** SQLite-backed persistence (default, zero-config storage). */
 
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { RunResult, WorkflowDefinition } from '../types.js';
+import type {
+  CredentialMeta,
+  CredentialRow,
+  ListExecutionsOptions,
+  StoredExecution,
+  StoredWorkflow,
+  WorkflowStore,
+} from './store-types.js';
 
-export interface StoredWorkflow {
-  id: string;
-  name: string;
-  definition: WorkflowDefinition;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface StoredExecution {
-  id: string;
-  workflowId: string;
-  workflowName: string;
-  status: 'success' | 'failure';
-  startedAt: string;
-  finishedAt: string;
-  ms: number;
-  records: unknown[];
-  outputs: Record<string, unknown>;
-  error?: string;
-}
+export type {
+  CredentialMeta,
+  CredentialRow,
+  ListExecutionsOptions,
+  StoredExecution,
+  StoredWorkflow,
+} from './store-types.js';
 
 interface WorkflowRow {
   id: string;
@@ -48,20 +43,7 @@ interface ExecutionRow {
   error: string | null;
 }
 
-export interface CredentialMeta {
-  id: string;
-  name: string;
-  type: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CredentialRow extends CredentialMeta {
-  /** AES-256-GCM payload — never exposed through the API. */
-  data: string;
-}
-
-export class Store {
+export class Store implements WorkflowStore {
   private readonly db: DatabaseSync;
 
   constructor(dbPath: string) {
@@ -99,6 +81,10 @@ export class Store {
     `);
   }
 
+  async init(): Promise<void> {
+    // Schema is created synchronously in the constructor.
+  }
+
   private toWorkflow(row: WorkflowRow): StoredWorkflow {
     return {
       id: row.id,
@@ -125,27 +111,27 @@ export class Store {
     return execution;
   }
 
-  countWorkflows(): number {
+  async countWorkflows(): Promise<number> {
     const row = this.db.prepare('SELECT COUNT(*) AS count FROM workflows').get() as { count: number };
     return row.count;
   }
 
-  listWorkflows(): StoredWorkflow[] {
+  async listWorkflows(): Promise<StoredWorkflow[]> {
     const rows = this.db
       .prepare('SELECT * FROM workflows ORDER BY updatedAt DESC')
       .all() as unknown as WorkflowRow[];
     return rows.map((row) => this.toWorkflow(row));
   }
 
-  getWorkflow(id: string): StoredWorkflow | undefined {
+  async getWorkflow(id: string): Promise<StoredWorkflow | undefined> {
     const row = this.db.prepare('SELECT * FROM workflows WHERE id = ?').get(id) as
       | WorkflowRow
       | undefined;
     return row ? this.toWorkflow(row) : undefined;
   }
 
-  upsertWorkflow(id: string, definition: WorkflowDefinition): StoredWorkflow {
-    const existing = this.getWorkflow(id);
+  async upsertWorkflow(id: string, definition: WorkflowDefinition): Promise<StoredWorkflow> {
+    const existing = await this.getWorkflow(id);
     const now = new Date().toISOString();
     const createdAt = existing?.createdAt ?? now;
     this.db
@@ -156,18 +142,18 @@ export class Store {
            definition = excluded.definition, updatedAt = excluded.updatedAt`,
       )
       .run(id, definition.name, JSON.stringify(definition), createdAt, now);
-    return this.getWorkflow(id)!;
+    return (await this.getWorkflow(id))!;
   }
 
-  deleteWorkflow(id: string): boolean {
+  async deleteWorkflow(id: string): Promise<boolean> {
     return this.db.prepare('DELETE FROM workflows WHERE id = ?').run(id).changes > 0;
   }
 
-  addExecution(
+  async addExecution(
     workflowId: string,
     result: RunResult,
     startedAt: string,
-  ): StoredExecution {
+  ): Promise<StoredExecution> {
     const id = randomUUID();
     const finishedAt = new Date().toISOString();
     const error = result.records.find((record) => record.status === 'error')?.error;
@@ -189,17 +175,17 @@ export class Store {
         JSON.stringify(result.outputs),
         error ?? null,
       );
-    return this.getExecution(id)!;
+    return (await this.getExecution(id))!;
   }
 
-  getExecution(id: string): StoredExecution | undefined {
+  async getExecution(id: string): Promise<StoredExecution | undefined> {
     const row = this.db.prepare('SELECT * FROM executions WHERE id = ?').get(id) as
       | ExecutionRow
       | undefined;
     return row ? this.toExecution(row) : undefined;
   }
 
-  listExecutions(options: { workflowId?: string; limit?: number } = {}): StoredExecution[] {
+  async listExecutions(options: ListExecutionsOptions = {}): Promise<StoredExecution[]> {
     const limit = Math.min(Math.max(options.limit ?? 50, 1), 500);
     let sql = 'SELECT * FROM executions';
     const params: Array<string | number> = [];
@@ -214,20 +200,24 @@ export class Store {
   }
 
   // ------------------------------------------------------------- credentials
-  listCredentials(): CredentialMeta[] {
-    const rows = this.db
+  async listCredentials(): Promise<CredentialMeta[]> {
+    return this.db
       .prepare('SELECT id, name, type, createdAt, updatedAt FROM credentials ORDER BY updatedAt DESC')
       .all() as unknown as CredentialMeta[];
-    return rows;
   }
 
-  getCredential(id: string): CredentialRow | undefined {
+  async getCredential(id: string): Promise<CredentialRow | undefined> {
     return this.db.prepare('SELECT * FROM credentials WHERE id = ?').get(id) as
       | CredentialRow
       | undefined;
   }
 
-  addCredential(id: string, name: string, type: string, encryptedData: string): CredentialRow {
+  async addCredential(
+    id: string,
+    name: string,
+    type: string,
+    encryptedData: string,
+  ): Promise<CredentialRow> {
     const now = new Date().toISOString();
     this.db
       .prepare(
@@ -235,19 +225,17 @@ export class Store {
          VALUES (?, ?, ?, ?, ?, ?)`,
       )
       .run(id, name, type, encryptedData, now, now);
-    return this.getCredential(id)!;
+    return (await this.getCredential(id))!;
   }
 
-  updateCredential(
+  async updateCredential(
     id: string,
     changes: { name?: string; type?: string; data?: string },
-  ): CredentialRow | undefined {
-    const current = this.getCredential(id);
+  ): Promise<CredentialRow | undefined> {
+    const current = await this.getCredential(id);
     if (!current) return undefined;
     this.db
-      .prepare(
-        `UPDATE credentials SET name = ?, type = ?, data = ?, updatedAt = ? WHERE id = ?`,
-      )
+      .prepare('UPDATE credentials SET name = ?, type = ?, data = ?, updatedAt = ? WHERE id = ?')
       .run(
         changes.name ?? current.name,
         changes.type ?? current.type,
@@ -258,7 +246,7 @@ export class Store {
     return this.getCredential(id);
   }
 
-  deleteCredential(id: string): boolean {
+  async deleteCredential(id: string): Promise<boolean> {
     return this.db.prepare('DELETE FROM credentials WHERE id = ?').run(id).changes > 0;
   }
 

@@ -36,20 +36,20 @@ function tempStore(): { store: Store; cleanup: () => void } {
 test('store persists workflows and execution history', async () => {
   const { store, cleanup } = tempStore();
   try {
-    const stored = store.upsertWorkflow('wf1', workflow);
+    const stored = await store.upsertWorkflow('wf1', workflow);
     assert.equal(stored.name, 'Simple');
-    assert.equal(store.countWorkflows(), 1);
-    assert.ok(store.getWorkflow('wf1'));
+    assert.equal(await store.countWorkflows(), 1);
+    assert.ok(await store.getWorkflow('wf1'));
 
     const result = await new WorkflowEngine().run(workflow);
-    const execution = store.addExecution('wf1', result, new Date().toISOString());
+    const execution = await store.addExecution('wf1', result, new Date().toISOString());
     assert.equal(execution.status, 'success');
-    assert.equal(store.listExecutions().length, 1);
-    assert.equal(store.listExecutions({ workflowId: 'wf1' }).length, 1);
-    assert.ok(store.getExecution(execution.id));
+    assert.equal((await store.listExecutions()).length, 1);
+    assert.equal((await store.listExecutions({ workflowId: 'wf1' })).length, 1);
+    assert.ok(await store.getExecution(execution.id));
 
-    assert.equal(store.deleteWorkflow('wf1'), true);
-    assert.equal(store.countWorkflows(), 0);
+    assert.equal(await store.deleteWorkflow('wf1'), true);
+    assert.equal(await store.countWorkflows(), 0);
   } finally {
     cleanup();
   }
