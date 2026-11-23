@@ -255,11 +255,25 @@ Set `settings.maxLoopIterations` (default 100) to guard against infinite loops.
 Exceeding it fails the run with a clear error. Execution records include the
 `iteration` index, shown as an `Iter` column in the editor's results table.
 
+## Code node sandbox
+
+Code nodes run in a restricted `node:vm` context (`src/sandbox.ts`):
+
+- No `process`, `require`, `fetch` or other host globals
+- `codeGeneration: { strings: false }` blocks `eval` and `Function(...)` escapes
+- A fresh context per execution, so prototype changes cannot leak between nodes
+- `console.log/warn/error` output is forwarded into the execution log
+- `timeoutMs` (default 1000) kills infinite synchronous loops and hangs
+
+Available in scope: `items`, `$json`, `$items`, `$now`, `console`, and standard
+JS built-ins. Code must `return` an array of items (or plain objects, which are
+wrapped as `{ json: ... }`).
+
 ## Known limitations
 
-- **`new Function` is not a sandbox** — expressions and Code nodes can access
-  globals. Workflows must be trusted; a production build needs a restricted
-  expression parser and an isolated VM.
+- **Expression interpolation still uses `new Function`** — the Code node is
+  sandboxed, but `{{ ... }}` interpolation in other nodes is not. Workflows
+  must still be trusted.
 - **Error handling stops the run** — partial failures per branch aren't retained.
 - **Free-tier hosting has ephemeral storage** — see `DEPLOY.md`; the SQLite
   database resets on redeploy.
@@ -271,4 +285,5 @@ Exceeding it fails the run with a clear error. Execution records include the
 3. ~~Phase 3 — React Flow visual editor with node palette, wiring and live logs.~~ **Done**
 4. ~~Phase 4 — Credentials, integrations, editor credential picker.~~ **Done**
 5. ~~Phase 5 — Loops/cycles with iteration limits.~~ **Done**
-6. **Next** — Sandboxed Code node, Postgres persistence, editor polish (undo/redo, import/export).
+6. ~~Phase 6 — Sandboxed Code node with restricted `node:vm` context.~~ **Done**
+7. **Next** — Postgres persistence for hosted deployments, editor polish (undo/redo, import/export).

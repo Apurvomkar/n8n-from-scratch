@@ -39,7 +39,7 @@ export function defaultParameters(nodeType: string): Record<string, any> {
     case 'set':
       return { values: {} };
     case 'code':
-      return { jsCode: 'return items;' };
+      return { jsCode: 'return items;', timeoutMs: 1000 };
     case 'if':
       return { condition: '$json.amount > 0' };
     case 'switch':
