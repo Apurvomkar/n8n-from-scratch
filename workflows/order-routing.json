@@ -1,0 +1,75 @@
+{
+  "name": "Order Routing",
+  "settings": { "timezone": "UTC" },
+  "nodes": [
+    {
+      "id": "trigger",
+      "type": "manualTrigger",
+      "name": "New Order",
+      "position": [0, 0],
+      "parameters": {
+        "payload": { "orderId": "ORD-1001", "amount": 150, "tier": "gold" }
+      }
+    },
+    {
+      "id": "enrich",
+      "type": "set",
+      "name": "Enrich Order",
+      "position": [220, 0],
+      "parameters": {
+        "values": {
+          "orderLabel": "{{ $json.orderId.toUpperCase() }}",
+          "needsReview": "{{ $json.amount >= 100 }}",
+          "shipping": "{{ $json.tier === 'gold' ? 8 : 15 }}",
+          "total": "{{ $json.amount + ($json.tier === 'gold' ? 8 : 15) }}"
+        }
+      }
+    },
+    {
+      "id": "isHighValue",
+      "type": "if",
+      "name": "High Value?",
+      "position": [440, 0],
+      "parameters": {
+        "condition": "$json.needsReview === true"
+      }
+    },
+    {
+      "id": "notifyManager",
+      "type": "log",
+      "name": "Notify Manager",
+      "position": [660, -120],
+      "parameters": {
+        "message": "MANAGER REVIEW: {{ $json.orderLabel }} total ${{ $json.total }}"
+      }
+    },
+    {
+      "id": "confirm",
+      "type": "log",
+      "name": "Confirm Order",
+      "position": [660, 120],
+      "parameters": {
+        "message": "CONFIRMED: {{ $json.orderLabel }} total ${{ $json.total }}"
+      }
+    },
+    {
+      "id": "done",
+      "type": "noOp",
+      "name": "Done",
+      "position": [880, 0],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "trigger": { "main": [[{ "node": "enrich", "type": "main", "index": 0 }]] },
+    "enrich": { "main": [[{ "node": "isHighValue", "type": "main", "index": 0 }]] },
+    "isHighValue": {
+      "main": [
+        [{ "node": "notifyManager", "type": "main", "index": 0 }],
+        [{ "node": "confirm", "type": "main", "index": 0 }]
+      ]
+    },
+    "notifyManager": { "main": [[{ "node": "done", "type": "main", "index": 0 }]] },
+    "confirm": { "main": [[{ "node": "done", "type": "main", "index": 0 }]] }
+  }
+}

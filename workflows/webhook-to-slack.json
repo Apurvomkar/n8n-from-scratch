@@ -1,0 +1,36 @@
+{
+  "name": "Webhook to Slack (simulated)",
+  "nodes": [
+    {
+      "id": "webhook",
+      "type": "webhook",
+      "name": "Incoming Signup",
+      "position": [0, 0],
+      "parameters": {
+        "payload": { "customer": "Ada", "plan": "pro", "seats": 12 }
+      }
+    },
+    {
+      "id": "buildMessage",
+      "type": "code",
+      "name": "Build Message",
+      "position": [220, 0],
+      "parameters": {
+        "jsCode": "return items.map(item => ({ json: { channel: '#sales', text: `New signup: ${item.customer} (${item.plan}, ${item.seats} seats)` } }));"
+      }
+    },
+    {
+      "id": "post",
+      "type": "log",
+      "name": "Post to Slack",
+      "position": [440, 0],
+      "parameters": {
+        "message": "[{{ $json.channel }}] {{ $json.text }}"
+      }
+    }
+  ],
+  "connections": {
+    "webhook": { "main": [[{ "node": "buildMessage", "type": "main", "index": 0 }]] },
+    "buildMessage": { "main": [[{ "node": "post", "type": "main", "index": 0 }]] }
+  }
+}

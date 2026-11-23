@@ -1,0 +1,16 @@
+{
+  "id": "heartbeat",
+  "name": "Heartbeat",
+  "settings": {
+    "schedule": "*/1 * * * * *",
+    "defaultItems": [{ "json": { "tick": true } }],
+    "webhookToken": "secret123"
+  },
+  "nodes": [
+    { "id": "trigger", "type": "manualTrigger", "parameters": {} },
+    { "id": "log", "type": "log", "parameters": { "message": "heartbeat tick" } }
+  ],
+  "connections": {
+    "trigger": { "main": [[{ "node": "log", "type": "main", "index": 0 }]] }
+  }
+}
