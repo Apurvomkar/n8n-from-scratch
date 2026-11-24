@@ -27,5 +27,6 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY --from=api-builder /app/dist ./dist
 COPY --from=ui-builder /app/ui/dist ./ui/dist
+COPY workflows ./workflows
 EXPOSE 3000
 CMD ["node", "dist/src/server/index.js"]
