@@ -43,6 +43,16 @@ npm run typecheck
 - **Import / Export** — export downloads the current workflow as a `.json` file;
   import reads one back and opens it as an unsaved workflow you can review and save.
 
+## API authentication
+
+Set the `API_KEY` environment variable to require `Authorization: Bearer <key>`
+on every `/api` route. `/health` and the editor itself stay public (Render needs
+the health check), and webhooks keep their own per-workflow `webhookToken`.
+
+In the editor, click **API key** in the toolbar and paste the same value. It is
+kept in the browser session only (`sessionStorage`), never in a workflow file.
+Without it, API calls return `401 Unauthorized`.
+
 ## Storage
 
 Set `DATABASE_URL` to use Postgres; otherwise the app uses SQLite at `DB_PATH`
