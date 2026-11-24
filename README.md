@@ -22,13 +22,15 @@ the engine layer first: no web UI yet. Workflows are JSON documents made of
 ## Start / stop the local web page
 
 ```powershell
-npm run web:start    # API on :3000 + editor on :5173
+npm run web:start    # API on :3000 + editor on :5173, opens the browser
 npm run web:stop     # stops both
 ```
 
-`start.ps1` waits until both ports are listening, records the real PIDs in
-`data\web-state.json`, and writes logs to `logs\`. `stop.ps1` stops those PIDs
-and any process still listening on the two ports.
+Run these from the project folder. `web:start` waits until both ports answer,
+records the real PIDs in `data\web-state.json`, writes logs to `logs\`, and
+opens http://localhost:5173 in your default browser. Use
+`npm run web:start -- -NoBrowser` to start without opening a browser.
+`web:stop` stops those PIDs and anything still listening on the two ports.
 
 ## Quick start
 

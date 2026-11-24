@@ -1,11 +1,14 @@
 <#
-  Start the local web page (API + React editor).
+  Start the local web page (API + React editor) and open it in your browser.
 
-    .\start.ps1
+    .\start.ps1              starts and opens the editor
+    .\start.ps1 -NoBrowser   starts without opening a browser
 
   URLs: editor http://localhost:5173  |  API http://localhost:3000
   Logs: logs\api.log, logs\api.err.log, logs\ui.log, logs\ui.err.log
 #>
+param([switch]$NoBrowser)
+
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -67,3 +70,8 @@ Write-Host 'Web page running:'
 Write-Host '  Editor: http://localhost:5173'
 Write-Host "  API:    http://localhost:3000"
 Write-Host "  PIDs:   $apiPid, $uiPid"
+
+if (-not $NoBrowser) {
+  Start-Process 'http://localhost:5173'
+  Write-Host 'Opening the editor in your browser...'
+}

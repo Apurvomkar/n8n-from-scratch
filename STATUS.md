@@ -61,10 +61,11 @@ Both domains verified in Render with TLS certificates issued.
 From `D:\Open Code\n8n-from-scratch`:
 
 ```powershell
-npm run web:start    # starts API (:3000) + editor (:5173)
+npm run web:start    # starts API (:3000) + editor (:5173) and opens the browser
 npm run web:stop     # stops both
 ```
 
-Or run `.\start.ps1` / `.\stop.ps1` directly. Logs go to `logs\`, and the
-running PIDs are recorded in `data\web-state.json` (both gitignored). The live
-site at https://layerup.host is unaffected by these commands.
+Run from the project folder. Or use `.\start.ps1` / `.\stop.ps1` directly
+(`.\start.ps1 -NoBrowser` starts without opening the browser). Logs go to
+`logs\`, and the running PIDs are recorded in `data\web-state.json` (both
+gitignored). The live site at https://layerup.host is unaffected.
