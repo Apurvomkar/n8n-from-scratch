@@ -56,6 +56,17 @@ Both domains verified in Render with TLS certificates issued.
 - Working tree clean; last commit `600a288`; branch `main` tracks `origin/main`
 - Dev servers stopped (ports 3000 and 5173 free)
 
+## Start / stop the live site
+
+```powershell
+npm run live:status   # running / suspended
+npm run live:stop     # suspend https://layerup.host
+npm run live:start    # resume it
+```
+
+Render API key is stored in `data\render-api-key.txt` (gitignored); service ID
+is `srv-dc2o51brjlhs73da5veg`. Suspended/resumed states were tested successfully.
+
 ## Start / stop the local web page
 
 From `D:\Open Code\n8n-from-scratch`:

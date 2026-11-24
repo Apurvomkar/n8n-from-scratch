@@ -13,7 +13,10 @@
     "db:backup": "tsx scripts/db-backup.ts",
     "db:restore": "tsx scripts/db-restore.ts",
     "web:start": "powershell -NoProfile -ExecutionPolicy Bypass -File start.ps1",
-    "web:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File stop.ps1"
+    "web:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File stop.ps1",
+    "live:start": "powershell -NoProfile -ExecutionPolicy Bypass -File live-start.ps1",
+    "live:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File live-stop.ps1",
+    "live:status": "powershell -NoProfile -ExecutionPolicy Bypass -File live-status.ps1"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

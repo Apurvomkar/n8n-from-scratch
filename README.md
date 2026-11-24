@@ -19,6 +19,17 @@ the engine layer first: no web UI yet. Workflows are JSON documents made of
 - **CLI** — `nodes`, `list`, `validate`, `describe`, `run`.
 - **Tests** using Node's built-in test runner.
 
+## Start / stop the live site (layerup.host)
+
+```powershell
+npm run live:status   # running or suspended
+npm run live:stop     # suspend the Render service
+npm run live:start    # resume it
+```
+
+These call the Render API using the key stored in `data\render-api-key.txt`
+(gitignored). On the free plan, a resumed instance can take a minute to answer.
+
 ## Start / stop the local web page
 
 ```powershell
