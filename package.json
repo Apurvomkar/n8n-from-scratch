@@ -9,7 +9,9 @@
     "server": "tsx src/server/index.ts",
     "start": "node dist/src/server/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "db:backup": "tsx scripts/db-backup.ts",
+    "db:restore": "tsx scripts/db-restore.ts"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

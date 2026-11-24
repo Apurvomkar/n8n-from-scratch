@@ -109,9 +109,36 @@ The app picks its store automatically:
 Always keep `ENCRYPTION_KEY` set as an environment variable so encrypted
 credentials remain decryptable if the database is ever reset.
 
-> Render's free Postgres plan expires after 30 days. Upgrade it to a paid plan
-> before then, or point `DATABASE_URL` at another Postgres provider (Railway,
-> Supabase, Neon, etc.). The app needs no code changes — just the URL.
+## Postgres expiry plan (important)
+
+Render's free Postgres plan expires **30 days after creation** — for this
+deployment, around **24 December 2026**. Pick one of these before then:
+
+**Option A — keep Render (simplest):** upgrade `n8n-db` to a paid plan in the
+Render dashboard. `DATABASE_URL` stays the same and no code or redeploy is
+needed.
+
+**Option B — move to another provider:** create a Postgres database on Railway,
+Supabase or Neon, then:
+
+1. Take a backup from the current database:
+   ```powershell
+   $env:DATABASE_URL = "<current external database URL>"
+   npm run db:backup
+   ```
+2. Point `DATABASE_URL` at the new database in Render's **Environment** tab and
+   save (this triggers a redeploy).
+3. Restore the backup into the new database:
+   ```powershell
+   $env:DATABASE_URL = "<new database URL>"
+   npm run db:restore -- backups\workflows-<timestamp>.json
+   ```
+4. Keep `ENCRYPTION_KEY` unchanged — credential secrets are encrypted with it.
+
+`npm run db:backup` exports workflows, encrypted credentials and up to 500
+executions to `backups/*.json` (gitignored). Run it periodically even before a
+migration. Workflow and credential IDs are preserved on restore; execution IDs
+are regenerated.
 
 On Railway, create a Postgres service, add its `DATABASE_URL` variable to the
 web service, and redeploy.
