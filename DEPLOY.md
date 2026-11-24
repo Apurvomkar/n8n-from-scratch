@@ -70,6 +70,10 @@ Render will show the exact DNS records it needs. In Hostinger:
    - `www` → `CNAME` → `<YOUR_SERVICE>.onrender.com`
    - `@` (apex) → `A` record to Render's displayed IP, or a `CNAME` if Render
      offers CNAME flattening for the apex.
+   **Exact records for this deployment** (Render service: `n8n-from-scratch`):
+   - `www` → `CNAME` → `n8n-from-scratch.onrender.com`
+   - `@` (apex) → `A` → `216.24.57.1`
+     (or `CNAME` → `n8n-from-scratch.onrender.com` if Hostinger allows a root CNAME)
 3. Save. DNS propagation can take a few minutes to a few hours.
 4. Render provisions a free TLS certificate automatically. Once it is active,
    `https://layerup.host` will serve the editor.
