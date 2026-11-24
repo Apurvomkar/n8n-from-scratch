@@ -57,10 +57,24 @@ export class PgStore implements WorkflowStore {
   private readonly pool: PoolLike;
 
   constructor(connectionStringOrPool: string | PoolLike) {
-    this.pool =
-      typeof connectionStringOrPool === 'string'
-        ? (new Pool({ connectionString: connectionStringOrPool }) as unknown as PoolLike)
-        : connectionStringOrPool;
+    if (typeof connectionStringOrPool !== 'string') {
+      this.pool = connectionStringOrPool;
+      return;
+    }
+
+    const connectionString = connectionStringOrPool;
+    let hostname = '';
+    try {
+      hostname = new URL(connectionString).hostname;
+    } catch {
+      // Let node-postgres surface a clearer error if the URL is malformed.
+    }
+    const local = ['localhost', '127.0.0.1', '::1'].includes(hostname);
+    this.pool = new Pool({
+      connectionString,
+      // Hosted Postgres (e.g. Render) requires TLS; local databases do not.
+      ...(local ? {} : { ssl: { rejectUnauthorized: false } }),
+    }) as unknown as PoolLike;
   }
 
   async init(): Promise<void> {
