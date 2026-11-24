@@ -19,6 +19,17 @@ the engine layer first: no web UI yet. Workflows are JSON documents made of
 - **CLI** — `nodes`, `list`, `validate`, `describe`, `run`.
 - **Tests** using Node's built-in test runner.
 
+## Start / stop the local web page
+
+```powershell
+npm run web:start    # API on :3000 + editor on :5173
+npm run web:stop     # stops both
+```
+
+`start.ps1` waits until both ports are listening, records the real PIDs in
+`data\web-state.json`, and writes logs to `logs\`. `stop.ps1` stops those PIDs
+and any process still listening on the two ports.
+
 ## Quick start
 
 ```powershell

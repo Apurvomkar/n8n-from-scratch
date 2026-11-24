@@ -56,11 +56,15 @@ Both domains verified in Render with TLS certificates issued.
 - Working tree clean; last commit `600a288`; branch `main` tracks `origin/main`
 - Dev servers stopped (ports 3000 and 5173 free)
 
-To resume:
+## Start / stop the local web page
+
+From `D:\Open Code\n8n-from-scratch`:
 
 ```powershell
-cd "D:\Open Code\n8n-from-scratch"
-npm run server
-# in another terminal:
-cd "D:\Open Code\n8n-from-scratch\ui"; npm run dev
+npm run web:start    # starts API (:3000) + editor (:5173)
+npm run web:stop     # stops both
 ```
+
+Or run `.\start.ps1` / `.\stop.ps1` directly. Logs go to `logs\`, and the
+running PIDs are recorded in `data\web-state.json` (both gitignored). The live
+site at https://layerup.host is unaffected by these commands.

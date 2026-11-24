@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "db:backup": "tsx scripts/db-backup.ts",
-    "db:restore": "tsx scripts/db-restore.ts"
+    "db:restore": "tsx scripts/db-restore.ts",
+    "web:start": "powershell -NoProfile -ExecutionPolicy Bypass -File start.ps1",
+    "web:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File stop.ps1"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
