@@ -8,10 +8,34 @@ import type {
   WorkflowSummary,
 } from './types';
 
+const API_KEY_STORAGE = 'n8n-editor-api-key';
+
+export function getApiKey(): string {
+  try {
+    return sessionStorage.getItem(API_KEY_STORAGE) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+export function setApiKey(value: string): void {
+  try {
+    if (value.trim()) sessionStorage.setItem(API_KEY_STORAGE, value.trim());
+    else sessionStorage.removeItem(API_KEY_STORAGE);
+  } catch {
+    // Storage can be unavailable in restricted browsing modes.
+  }
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const key = getApiKey();
   const response = await fetch(path, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...(options?.headers ?? {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(key ? { Authorization: `Bearer ${key}` } : {}),
+      ...(options?.headers ?? {}),
+    },
   });
   if (!response.ok) {
     const text = await response.text();
@@ -22,7 +46,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     } catch {
       // keep raw text
     }
-    throw new Error(message);
+    throw new Error(
+      response.status === 401
+        ? 'Unauthorized — open "API key" and enter the server key'
+        : message,
+    );
   }
   if (response.status === 204) {
     return undefined as T;

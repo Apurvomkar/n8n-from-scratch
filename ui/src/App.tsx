@@ -33,6 +33,7 @@ import {
   type EditorNode,
   type EditorNodeData,
 } from './converter';
+import { AuthDialog } from './components/AuthDialog';
 import { ConfigPanel } from './components/ConfigPanel';
 import { CredentialsDialog } from './components/CredentialsDialog';
 import { Palette } from './components/Palette';
@@ -73,6 +74,7 @@ function Editor() {
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [credentials, setCredentials] = useState<CredentialMeta[]>([]);
   const [credentialsOpen, setCredentialsOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   const [past, setPast] = useState<Snapshot[]>([]);
   const [future, setFuture] = useState<Snapshot[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -430,6 +432,7 @@ function Editor() {
         onRedo={redo}
         onImport={() => fileInputRef.current?.click()}
         onExport={exportWorkflow}
+        onApiKey={() => setAuthOpen(true)}
       />
       <input
         ref={fileInputRef}
@@ -506,6 +509,8 @@ function Editor() {
         onClose={() => setCredentialsOpen(false)}
         onChanged={() => void refreshCredentials()}
       />
+
+      <AuthDialog open={authOpen} onClose={() => setAuthOpen(false)} />
     </div>
   );
 }

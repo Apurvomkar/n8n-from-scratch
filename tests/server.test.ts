@@ -55,6 +55,42 @@ test('store persists workflows and execution history', async () => {
   }
 });
 
+test('API key protects /api but not /health or the webhook', async () => {
+  const { store, cleanup } = tempStore();
+  const { app, scheduler } = createApp({
+    store,
+    key: randomBytes(32),
+    apiKey: 'secret-token',
+    log: () => {},
+  });
+  const server = createServer(app);
+  await new Promise<void>((resolve) => server.listen(0, resolve));
+  const port = (server.address() as { port: number }).port;
+  const base = `http://127.0.0.1:${port}`;
+
+  try {
+    const unauthorized = await fetch(`${base}/api/workflows`);
+    assert.equal(unauthorized.status, 401);
+
+    const health = await fetch(`${base}/health`);
+    assert.equal(health.status, 200);
+
+    const authorized = await fetch(`${base}/api/workflows`, {
+      headers: { Authorization: 'Bearer secret-token' },
+    });
+    assert.equal(authorized.status, 200);
+
+    const wrong = await fetch(`${base}/api/workflows`, {
+      headers: { Authorization: 'Bearer wrong' },
+    });
+    assert.equal(wrong.status, 401);
+  } finally {
+    scheduler.stop();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    cleanup();
+  }
+});
+
 test('API supports CRUD, webhook tokens and execution history', async () => {
   const { store, cleanup } = tempStore();
   const { app, scheduler } = createApp({ store, key: randomBytes(32), log: () => {} });

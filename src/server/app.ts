@@ -17,6 +17,8 @@ type CreateBody = WorkflowDefinition & { id?: string };
 export interface AppOptions {
   store: WorkflowStore;
   key: Buffer;
+  /** When set, all /api routes require `Authorization: Bearer <apiKey>`. */
+  apiKey?: string;
   log?: (message: string) => void;
   /** Built UI directory to serve (e.g. ui/dist). Omit for API-only mode. */
   uiDist?: string;
@@ -67,6 +69,19 @@ export function createApp(options: AppOptions): AppBundle {
 
   const app = express();
   app.use(express.json({ limit: '1mb' }));
+
+  if (options.apiKey) {
+    app.use('/api', (req, res, next) => {
+      const header = req.header('authorization') ?? '';
+      const provided = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+      if (provided !== options.apiKey) {
+        res.status(401).json({ error: 'Unauthorized — missing or invalid API key' });
+        return;
+      }
+      next();
+    });
+  }
+
   if (serveUi && options.uiDist) {
     app.use(express.static(options.uiDist));
   }

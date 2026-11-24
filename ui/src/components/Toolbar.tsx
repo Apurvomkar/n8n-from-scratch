@@ -18,6 +18,7 @@ interface ToolbarProps {
   onRedo: () => void;
   onImport: () => void;
   onExport: () => void;
+  onApiKey: () => void;
 }
 
 export function Toolbar({
@@ -38,6 +39,7 @@ export function Toolbar({
   onRedo,
   onImport,
   onExport,
+  onApiKey,
 }: ToolbarProps) {
   return (
     <header className="toolbar">
@@ -67,6 +69,7 @@ export function Toolbar({
         Delete
       </button>
       <button className="btn" onClick={onCredentials}>Credentials</button>
+      <button className="btn" onClick={onApiKey}>API key</button>
 
       <div className="toolbar__spacer" />
 

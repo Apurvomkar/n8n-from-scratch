@@ -37,9 +37,11 @@ async function seedWorkflows(): Promise<number> {
 }
 
 const seeded = await seedWorkflows();
+const apiKey = process.env.API_KEY || undefined;
 const { app, scheduler } = createApp({
   store,
   key,
+  apiKey,
   log: console.log,
   uiDist: join(process.cwd(), 'ui', 'dist'),
 });
@@ -54,6 +56,7 @@ server.listen(port, async () => {
   console.log(`  storage: ${postgresUrl ? 'Postgres' : `SQLite (${dbPath})`}`);
   console.log(`  workflows: ${await store.countWorkflows()}${seeded > 0 ? ` (seeded ${seeded})` : ''}`);
   console.log(`  scheduled: ${scheduler.size}`);
+  console.log(`  API auth: ${apiKey ? 'enabled (bearer token)' : 'disabled — set API_KEY to protect /api'}`);
 });
 
 function shutdown(): void {
